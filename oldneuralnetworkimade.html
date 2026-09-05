@@ -1,0 +1,329 @@
+<!--This is an old neural network I made, I wanted to do more
+with this concept so I made a GitHub of trying to make a small
+auto complete AI. This is more of a reference for me, cool if you want
+to check it out, but it kinda sucks lmao.-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Experimental Neural Network</title>
+	<link rel="icon" type="image/x-icon" href="texture/favicon.ico">
+    <style>
+		.node {
+			position: absolute;
+			border-radius: 50px;
+			border-color: black;
+			border-width: 10px;
+			background-color: red;
+			width: 50px;
+			height: 50px;
+			display: grid;
+			place-items: center;
+			justify-content: center;
+			align-items: center;
+		}
+		
+		.node h1 {
+			margin: 0;
+			font-size: 20px;
+		}
+    </style>
+</head>
+<body>
+	<h1>| Goal: 0,1 outputs 1 | Learning Rate: 0.1 |</h1>
+	<div class="node" id="baseNode">
+		<h1>[0,1]</h1>
+	</div>
+	<input id="testing" maxlength="15"><button id="submit">
+	<script>
+		const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+		document.querySelectorAll('.node:not(#baseNode)').forEach(el => el.remove());
+		const testing = document.getElementById("testing");
+		const submitBtn = document.getElementById("submit");
+		const baseNode = document.getElementById("baseNode");
+		baseNode.style.top = "400px"
+		let input = ["yes"];
+		let target = 1;
+		let output = 0;
+		let layers = [[],[],[],[],[],[]]
+		let layerNodes = [5,5,1]
+		let trainAmount = 15_000
+		let nodeHeight = 200;
+		let maxLength = 15;
+		let weights = [];
+		let biases = [];
+		let sums = [];
+		let runs = 0;
+		let visualsOnGlobal = false;
+		let runningTimer = 0;
+		let learningRate = .01;
+		let trainingData = [
+			{ text: "no", target: .05 },
+			{ text: "noo", target: .05 },
+			{ text: "yes", target: .95 },
+			{ text: "maybe", target: .5 },
+			{ text: "kinda", target: .75 },
+			{ text: "barely", target: .25 },
+			{ text: "yess", target: .95 },
+			{ text: "yep", target: .95 },
+			{ text: "doubt", target: .10 },
+			{ text: "bad", target: .05 },
+			{ text: "good", target: .95 },
+			{ text: "villain", target: .05 },
+			{ text: "hero", target: .95 },
+			{ text: "nope", target: .05 },
+			{ text: "evil", target: .05 },
+		];
+		
+		async function createNodesOneLayer(visualsEnabled) {
+			if (visualsEnabled === true) {
+				document.querySelectorAll('.node:not(#baseNode)').forEach(el => el.remove());
+			}
+			let oldWeights = weights;
+			let oldBiases = biases;
+			layers = [];
+			weights = [];
+			biases = [];
+			sums = [];
+			for (let p = 0; p < layerNodes.length; p++) {
+				layers.push([])
+				let layerTempWeights = [];
+				let layerTempBiases = [];
+				let layerTempSums = [];
+				for (let i = 0; i < layerNodes[p]; i++) {
+					let clone;
+					if (visualsEnabled === true) {
+						clone = baseNode.cloneNode(true); 
+						document.body.appendChild(clone)
+						clone.id = "1layernode" + i; 
+						clone.style.top = String(nodeHeight + (i * 100)) + "px";
+						if (layerNodes[p] === 1) clone.style.top = "400px"
+						clone.style.left = ((100 * p) + 100) + "px";
+					}
+					
+					let nodeWeights = []
+					let sum = 0;
+					if (runs === 0) {
+						if (p === 0) {
+							for (let r = 0; r < input.length; r++) {
+								let w = (Math.random() * 2 - 1) / Math.sqrt(input.length);
+								nodeWeights.push(w)
+								sum += w * input[r];
+							}
+						} else {
+							for (let r = 0; r < layers[p - 1].length; r++) {
+								let w = (Math.random() * 2 - 1) / Math.sqrt(layers[p - 1].length);
+								nodeWeights.push(w)
+								sum += w * sums[p - 1][r]
+							}
+						}
+					} else {
+						if (p === 0) {
+							for (let r = 0; r < input.length; r++) {
+								let w = oldWeights[p][i][r]
+								nodeWeights.push(w)
+								sum += w * input[r];
+							}
+						} else {
+							for (let r = 0; r < layers[p - 1].length; r++) {
+								let w = oldWeights[p][i][r]
+								nodeWeights.push(w)
+								sum += w * sums[p - 1][r]
+							}
+						}
+					}
+					
+					layerTempWeights.push(nodeWeights);
+					let bias = runs === 0 ? Math.random() * 2 - 1 : oldBiases[p][i]
+					layerTempBiases.push(bias);
+					
+					sum += bias;
+					let squishedSum = 1 / (1 + Math.exp(-sum));
+					layerTempSums.push(squishedSum)
+					let nodeVal = squishedSum;
+					layers[p].push(nodeVal);
+					if (visualsEnabled === true) {
+						clone.innerText = String(nodeVal.toFixed(2))
+					}
+					if (p === layerNodes.length - 1) {
+						output = nodeVal;
+					}
+				}
+				weights.push(layerTempWeights)
+				biases.push(layerTempBiases)
+				sums.push(layerTempSums)
+			}
+			
+			//misses
+			let miss = output - target;
+			
+			//steepnesses
+			let steepnessOutputs = [];
+			for (let x = 0; x < layerNodes.length; x++) {
+				steepnessOutputs.push([])
+			}
+			for (let g = 0; g < layerNodes.length; g++) {
+				for (let i = 0; i < sums[g].length; i++) {
+					steepnessOutputs[g].push(sums[g][i] * (1 - sums[g][i]))
+				}
+			}
+
+			
+			//pushAmts
+			let pushAmtsOutputs = [];
+			for (let x = 0; x < layerNodes.length; x++) {
+				pushAmtsOutputs.push([])
+			}
+			for (let x = 0; x < steepnessOutputs.length; x++) {
+				for (let i = 0; i < steepnessOutputs[x].length; i++) {
+					pushAmtsOutputs[x].push(miss * steepnessOutputs[x][i])
+				}
+			}
+			
+			//blames
+			let blameOutputs = [];
+			for (let x = 0; x < layerNodes.length; x++) {
+				blameOutputs.push([])
+			}
+			for (let layerLoop = 0; layerLoop < layerNodes.length; layerLoop++) {
+				let incomingValues = layerLoop === 0 ? input : sums[layerLoop - 1];
+				for (let nodeIndex = 0; nodeIndex < pushAmtsOutputs[layerLoop].length; nodeIndex++) {
+					let pushAmt = pushAmtsOutputs[layerLoop][nodeIndex];
+					let nodeBlames = [];
+					
+					for (let r = 0; r < incomingValues.length; r++) {
+						nodeBlames.push(pushAmt * incomingValues[r]);
+					}
+					blameOutputs[layerLoop].push(nodeBlames);
+				}
+			}
+			
+			for (let layerIndex = 0; layerIndex < sums.length; layerIndex++) {
+				for (let nodeIndex = 0; nodeIndex < weights[layerIndex].length; nodeIndex++) {
+					for (let r = 0; r < weights[layerIndex][nodeIndex].length; r++) {
+						weights[layerIndex][nodeIndex][r] -= learningRate * blameOutputs[layerIndex][nodeIndex][r]
+					}
+				}
+				for (let nodeIndex = 0; nodeIndex < biases[layerIndex].length; nodeIndex++) {
+					biases[layerIndex][nodeIndex] -= learningRate * pushAmtsOutputs[layerIndex][nodeIndex]
+				}
+			}
+			runs += 1;
+		}
+		
+		function predict(text) {
+			if (weights.length < 2) {
+				return null
+			}
+			let testInput = normalizeInput(text);
+			let prevValues = testInput;
+			for (let p = 0; p < layerNodes.length; p++) {
+				let layerOutputs = [];
+				for (let i = 0; i < layerNodes[p]; i++) {
+					let sum = 0;
+					for (let r = 0; r < prevValues.length; r++) {
+						sum += weights[p][i][r] * prevValues[r];
+					}
+					sum += biases[p][i];
+					let squished = 1 / (1 + Math.exp(-sum));
+					layerOutputs.push(squished);
+				}
+				prevValues = layerOutputs;
+			}
+			return prevValues[0]
+		}
+
+		function testNetwork() {
+			let text = document.getElementById("testInput").value;
+			let result = predict(text);
+
+			if (result === null) {
+				document.getElementById("testResult").innerText = "Result: network not initialized yet";
+				return;
+			}
+
+			document.getElementById("testResult").innerText = "Result: " + result.toFixed(4);
+		}
+		
+		async function trainOneEpoch(turnOnVisuals) {
+			for (let example of trainingData) {
+				input = normalizeInput(example.text)
+				target = example.target;
+				await createNodesOneLayer(turnOnVisuals);
+			}
+		}
+
+		async function loopIt() {
+			document
+				.querySelectorAll('.node:not(#baseNode)')
+				.forEach(el => el.remove());
+
+			// Give browser time to actually paint the removal
+			await new Promise(resolve => {
+				requestAnimationFrame(() => {
+					setTimeout(resolve, 0);
+				});
+			});
+			for (let i = 0; i < trainAmount; i++) {
+				if (i % 100 === 0 && visualsOnGlobal === true) {
+					await trainOneEpoch(true);
+					await new Promise(resolve => requestAnimationFrame(resolve));
+				} else {
+					await trainOneEpoch(false);
+					if (i === 7499) {
+						await trainOneEpoch(true);
+						await new Promise(resolve => requestAnimationFrame(resolve));
+					}
+				}
+				if (i % 500 === 0) console.log("epoch " + i + " / " + trainAmount + ", output: " + output.toFixed(4));
+				if (i % 500 === 0) console.log(runningTimer)
+				if (i % 500 === 0) runningTimer = 0;
+			}
+			console.log("done!");
+			console.log("Final state was for input " + JSON.stringify(input) + " (target " + target + "), output: " + output.toFixed(4));
+		}
+		
+		function charToBinary(char) {
+			let code = char.charCodeAt(0);
+			let binary = code.toString(2);
+			while (binary.length < 8) {
+				binary = "0" + binary;
+			}
+			return binary.split("").map(Number);
+		}
+		
+		function normalizeInput(text) {
+			text = text.slice(0, maxLength);
+			while (text.length < maxLength) {
+				text += " ";
+			}
+			let textOutput = [];
+			for (let i = 0; i < text.length; i++) {
+				let bits = charToBinary(text[i]);
+				textOutput.push(...bits);
+			}
+			return textOutput;
+		}
+		
+		submitBtn.onclick = function () {
+			input = testing.value;
+			testing.value = "";
+			let result = predict(input)
+			console.log(input + " returned " + result)
+		}
+		
+		async function startTimer() {
+			while (true) {
+				await sleep(1000)
+				runningTimer += 1;
+			}
+		}
+		
+		
+		startTimer()
+		loopIt()
+		
+	</script>
+</body>
+</html>
