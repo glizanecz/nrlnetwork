@@ -1,0 +1,34 @@
+/* IGNORE THIS! I wanted to make a stupid little tool for me and my friends, this
+has literally nothing to do with the other stuff, I didn't want to make a whole
+GitHub repo for this bs */
+
+<!DOCTYPE html>
+<html>
+<lang en="us">
+<body>
+    <h1>Really Cool Sentence Scrambler</h1>
+    <textarea id="input"></textarea>
+    <textarea readonly id="output"></textarea>
+    <script>
+        const input = document.getElementById("input");
+        const output = document.getElementById("output");
+        input.oninput = function() {
+            let inputWords = input.value.split(/[.,;\s-]/);
+            if (inputWords.length < 2) {
+                output.innerText = inputWords;
+                console.log("i canceled early")
+                return;
+            }
+            let randomArray = Array(inputWords.length)
+            for (let i = 0; i < inputWords.length; i++) {
+                let randomPick = Math.floor(Math.random() * inputWords.length);
+                while(randomArray[randomPick] !== undefined) {
+                    randomPick = Math.floor(Math.random() * inputWords.length);
+                }
+                randomArray[randomPick] = inputWords[i];
+            }
+            output.value = randomArray.join(",").replaceAll(",", " ");
+        }
+    </script>
+</body>
+</html>
